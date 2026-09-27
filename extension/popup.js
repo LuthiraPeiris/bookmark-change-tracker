@@ -117,10 +117,11 @@ async function registerBookmark(bookmark) {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      bookmarkId: bookmark.id,
-      title: bookmark.title,
-      url: bookmark.url
-    })
+  bookmarkId: bookmark.id,
+  title: bookmark.title,
+  url: bookmark.url,
+  source: "initial-sync"
+})
   });
 
   if (!response.ok) {

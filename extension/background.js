@@ -24,10 +24,11 @@ chrome.bookmarks.onCreated.addListener(async (id, bookmark) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        bookmarkId: id,
-        title: bookmark.title || "Untitled",
-        url: bookmark.url
-      })
+  bookmarkId: id,
+  title: bookmark.title || "Untitled",
+  url: bookmark.url,
+  source: "new-bookmark"
+})
     });
     console.log("📥 AWS response received:", response.status);
 

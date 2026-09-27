@@ -5,104 +5,128 @@ import {
 
 const client = new DynamoDBClient({});
 
-// ---------------------------------------------------------------------------
-// Rule-based categorization
-// Inspects the bookmark title and hostname to assign one of seven categories.
-// Returns "Other" when no rule matches confidently.
-// ---------------------------------------------------------------------------
+const TABLE_NAME = "BookmarkChangeTracker";
 
-const RULES = [
-  {
-    category: "AWS & Cloud",
-    domains: ["aws.amazon.com", "console.aws.amazon.com", "docs.aws.amazon.com",
-              "cloud.google.com", "azure.microsoft.com", "cloudflare.com",
-              "vercel.com", "netlify.com", "heroku.com", "digitalocean.com",
-              "terraform.io", "pulumi.com"],
-    keywords: ["aws", "amazon web services", "azure", "gcp", "google cloud",
-                "cloudformation", "lambda", "s3 bucket", "ec2", "dynamodb",
-                "kubernetes", "docker hub", "cloud"]
-  },
-  {
-    category: "Development",
-    domains: ["github.com", "gitlab.com", "bitbucket.org", "stackoverflow.com",
-              "developer.mozilla.org", "npmjs.com", "pypi.org", "rubygems.org",
-              "pkg.go.dev", "crates.io", "docs.rs", "jsfiddle.net",
-              "codepen.io", "replit.com", "codesandbox.io"],
-    keywords: ["github", "gitlab", "repository", "npm ", "api docs",
-                "documentation", "sdk", "framework", "library", "plugin",
-                "typescript", "javascript", "python", "golang", "rust",
-                "react", "vue", "angular", "node.js", "django", "rails",
-                "programming", "developer", "devops", "regex", "json"]
-  },
-  {
-    category: "Learning",
-    domains: ["coursera.org", "udemy.com", "edx.org", "pluralsight.com",
-              "linkedin.com/learning", "khanacademy.org", "freecodecamp.org",
-              "codecademy.org", "egghead.io", "frontendmasters.com",
-              "brilliant.org", "udacity.com", "skillshare.com",
-              "youtube.com", "youtu.be"],
-    keywords: ["tutorial", "course", "learn", "learning", "guide", "how to",
-                "introduction to", "getting started", "beginner", "advanced",
-                "workshop", "lecture", "bootcamp", "certification", "training"]
-  },
-  {
-    category: "Articles",
-    domains: ["medium.com", "dev.to", "hashnode.com", "substack.com",
-              "blog.", "news.ycombinator.com", "reddit.com", "lobste.rs",
-              "smashingmagazine.com", "css-tricks.com", "alistapart.com",
-              "thenewstack.io", "infoq.com"],
-    keywords: ["blog", "article", "post", "essay", "opinion", "weekly",
-                "digest", "newsletter", "hacker news", "reading"]
-  },
-  {
-    category: "Tools",
-    domains: ["figma.com", "notion.so", "airtable.com", "trello.com",
-              "jira.atlassian.com", "confluence.atlassian.com",
-              "linear.app", "miro.com", "excalidraw.com",
-              "regex101.com", "jsonformatter.org", "caniuse.com",
-              "bundlephobia.com", "httpstat.us", "requestbin.com",
-              "postman.com", "insomnia.rest"],
-    keywords: ["tool", "playground", "editor", "formatter", "converter",
-                "generator", "calculator", "simulator", "dashboard",
-                "monitor", "analytics", "productivity"]
-  },
-  {
-    category: "Social",
-    domains: ["twitter.com", "x.com", "linkedin.com", "facebook.com",
-              "instagram.com", "mastodon.social", "threads.net",
-              "discord.com", "slack.com", "telegram.org",
-              "producthunt.com"],
-    keywords: ["twitter", "linkedin", "facebook", "instagram", "profile",
-                "community", "forum", "discuss", "network"]
-  }
+// These are OUR categories.
+// The AI is only allowed to choose one of them.
+const CATEGORIES = [
+  "Development",
+  "AWS & Cloud",
+  "AI",
+  "Learning",
+  "Articles",
+  "Tools",
+  "Social & Profiles",
+  "Books",
+  "Movies & Entertainment",
+  "Hardware & Electronics",
+  "Shopping",
+  "Travel & Places",
+  "Searches"
 ];
 
-function categorize(title, url) {
-  const t = (title || "").toLowerCase();
-  let hostname = "";
-  try { hostname = new URL(url).hostname.replace(/^www\./, ""); } catch { /* skip */ }
+async function categorizeWithAI(title, url) {
+  const apiKey = process.env.GROQ_API_KEY;
 
-  for (const rule of RULES) {
-    // Domain match
-    for (const d of rule.domains) {
-      if (hostname === d || hostname.endsWith("." + d) || hostname.startsWith(d)) {
-        return rule.category;
-      }
-    }
-    // Keyword match in title
-    for (const kw of rule.keywords) {
-      if (t.includes(kw)) return rule.category;
-    }
+  if (!apiKey) {
+    throw new Error("GROQ_API_KEY environment variable is not configured");
   }
 
-  return "Other";
+  const response = await fetch(
+    "https://api.groq.com/openai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-20b",
+
+        temperature: 0,
+
+        messages: [
+          {
+            role: "system",
+            content: `
+You are a bookmark categorization assistant.
+
+Your task is to classify a browser bookmark into exactly ONE
+of the provided categories.
+
+You must choose ONLY from the following categories:
+
+${CATEGORIES.map((category) => `- ${category}`).join("\n")}
+
+Use both the bookmark title and URL to understand what the
+bookmark is about.
+
+Choose the category that best represents the primary purpose
+of the bookmark.
+
+Do not create new categories.
+Do not return "Other".
+Return exactly one category.
+            `.trim()
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              title: title || "Untitled",
+              url
+            })
+          }
+        ],
+
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "bookmark_category",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                category: {
+                  type: "string",
+                  enum: CATEGORIES
+                }
+              },
+              required: ["category"],
+              additionalProperties: false
+            }
+          }
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Groq API error ${response.status}: ${errorText}`
+    );
+  }
+
+  const data = await response.json();
+
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (!content) {
+    throw new Error("Groq returned an empty response");
+  }
+
+  const result = JSON.parse(content);
+
+  if (!CATEGORIES.includes(result.category)) {
+    throw new Error(
+      `Invalid category returned by Groq: ${result.category}`
+    );
+  }
+
+  return result.category;
 }
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
-
-const TABLE_NAME = "BookmarkChangeTracker";
 
 export const handler = async (event) => {
   try {
@@ -111,24 +135,69 @@ export const handler = async (event) => {
         ? JSON.parse(event.body)
         : event.body;
 
-    const { bookmarkId, title, url } = body;
+    const { bookmarkId, title, url, source } = body || {};
 
     if (!bookmarkId || !url) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: "bookmarkId and url are required" })
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: "bookmarkId and url are required"
+        })
       };
     }
 
-    const category = categorize(title, url);
+    let category = null;
+
+if (source === "new-bookmark") {
+  console.log("🧠 New bookmark detected — classifying with Groq:", {
+    bookmarkId,
+    title,
+    url
+  });
+
+  category = await categorizeWithAI(title, url);
+
+  console.log("AI category:", category);
+} else {
+  console.log("📥 Initial sync — skipping AI categorization:", {
+    bookmarkId,
+    title,
+    url
+  });
+}
 
     const item = {
-      bookmarkId: { S: String(bookmarkId) },
-      title:      { S: title || "Untitled" },
-      url:        { S: url },
-      category:   { S: category },
-      status:     { S: "ACTIVE" },
-      createdAt:  { S: new Date().toISOString() }
+      bookmarkId: {
+        S: String(bookmarkId)
+      },
+
+      title: {
+        S: title || "Untitled"
+      },
+
+      url: {
+        S: url
+      },
+
+      ...(category
+  ? {
+      category: {
+        S: category
+      }
+    }
+  : {}),
+
+      status: {
+        S: "ACTIVE"
+      },
+
+      createdAt: {
+        S: new Date().toISOString()
+      }
     };
 
     await client.send(
@@ -140,18 +209,35 @@ export const handler = async (event) => {
 
     return {
       statusCode: 201,
+
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+
       body: JSON.stringify({
         message: "Bookmark registered successfully",
         bookmarkId,
-        category
+        category: category || null,
+        source: source || "unknown"
       })
     };
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Error registering bookmark:", error);
+
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: "Internal server error" })
+
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+
+      body: JSON.stringify({
+        message: "Internal server error",
+        error: error.message
+      })
     };
   }
 };
