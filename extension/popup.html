@@ -1,29 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bookmark Change Tracker</title>
-  <link rel="stylesheet" href="popup.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bookmark Tracker</title>
+  <link rel="stylesheet" href="popup.css" />
 </head>
-
 <body>
-
   <div class="container">
 
-    <h1>Bookmark Tracker</h1>
+    <header class="header">
+      <div class="logo" aria-hidden="true">&#128278;</div>
+      <div>
+        <h1>Bookmark Tracker</h1>
+        <p class="subtitle">Monitor your bookmarked websites for changes.</p>
+      </div>
+    </header>
 
-    <p class="subtitle">
-      Your bookmarked websites
-    </p>
+    <div class="card">
+      <button id="sync-btn" class="btn-primary">
+        <span class="btn-icon" aria-hidden="true">&#8635;</span>
+        Sync Bookmarks
+      </button>
 
-    <div id="bookmarks">
-      Loading bookmarks...
+      <div id="status" class="status status-idle" role="status" aria-live="polite">
+        Ready to sync your bookmarks.
+      </div>
     </div>
 
+    <div id="bookmarks-section" class="bookmarks-section" aria-label="Discovered bookmarks"></div>
+
   </div>
-
   <script src="popup.js"></script>
-
 </body>
 </html>
