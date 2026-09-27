@@ -1,169 +1,257 @@
 "use strict";
 
-// Same endpoint used by background.js
+// API endpoints
 const API_URL =
   "https://ykp7sgqc50.execute-api.us-east-1.amazonaws.com/bookmarks";
 
-// Maximum simultaneous API requests — stays well under the Lambda concurrency limit of 10
+const BOOKMARKS_API_URL =
+  "https://ykp7sgqc50.execute-api.us-east-1.amazonaws.com/api/bookmarks";
+
+// Maximum simultaneous POST requests.
+// This stays well below the AWS Lambda concurrency limit of 10.
 const MAX_CONCURRENCY = 3;
 
-// URL schemes that cannot be monitored — skip without counting as failures
+// Only normal web pages can be monitored.
 const SUPPORTED_SCHEMES = ["http://", "https://"];
 
-// ── DOM refs ─────────────────────────────────────────────────────────────────
-const syncBtn      = document.getElementById("sync-btn");
-const statusEl     = document.getElementById("status");
+// DOM references
+const syncBtn = document.getElementById("sync-btn");
+const statusEl = document.getElementById("status");
 const bookmarksSec = document.getElementById("bookmarks-section");
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Safely escape text for insertion as HTML.
- * Uses a temporary DOM element — safe in extension context.
- */
 function esc(text) {
   const div = document.createElement("div");
   div.textContent = String(text == null ? "" : text);
   return div.innerHTML;
 }
 
-/** Display a short hostname for the URL column. */
 function displayHost(url) {
-  try { return new URL(url).host; } catch { return url; }
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
-/** Returns true if the URL uses a supported (http/https) scheme. */
 function isSupportedUrl(url) {
   for (var i = 0; i < SUPPORTED_SCHEMES.length; i++) {
-    if (url.indexOf(SUPPORTED_SCHEMES[i]) === 0) return true;
+    if (url.indexOf(SUPPORTED_SCHEMES[i]) === 0) {
+      return true;
+    }
   }
+
   return false;
 }
 
-/** Recursively collect every node that has a url (i.e. is not a folder). */
 function extractBookmarks(nodes) {
   const results = [];
+
   function walk(nodeList) {
     for (const node of nodeList) {
       if (node.url) {
-        results.push({ id: node.id, title: node.title || "Untitled", url: node.url });
+        results.push({
+          id: node.id,
+          title: node.title || "Untitled",
+          url: node.url
+        });
       }
-      if (node.children) walk(node.children);
+
+      if (node.children) {
+        walk(node.children);
+      }
     }
   }
+
   walk(nodes);
+
   return results;
 }
 
-/** Update the status bar with the appropriate style. */
-function setStatus(msg, type /* idle | syncing | success | partial | error */) {
+function setStatus(msg, type) {
   statusEl.textContent = msg;
   statusEl.className = "status status-" + (type || "idle");
 }
 
-/** POST a single bookmark to the API. Throws on non-2xx. */
+// ─────────────────────────────────────────────────────────────────────────────
+// Get bookmarks already registered in AWS
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function getRegisteredBookmarkIds() {
+  const response = await fetch(BOOKMARKS_API_URL, {
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to check existing bookmarks (HTTP " + response.status + ")");
+  }
+
+  const data = await response.json();
+
+  if (!data || !Array.isArray(data.bookmarks)) {
+    throw new Error("Invalid response from bookmark API");
+  }
+
+  const ids = new Set();
+
+  for (const bookmark of data.bookmarks) {
+    if (bookmark.bookmarkId !== undefined && bookmark.bookmarkId !== null) {
+      ids.add(String(bookmark.bookmarkId));
+    }
+  }
+
+  return ids;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST one new bookmark
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function registerBookmark(bookmark) {
-  const res = await fetch(API_URL, {
+  const response = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({
       bookmarkId: bookmark.id,
-      title:      bookmark.title,
-      url:        bookmark.url,
-    }),
+      title: bookmark.title,
+      url: bookmark.url
+    })
   });
-  if (!res.ok) throw new Error("HTTP " + res.status);
+
+  if (!response.ok) {
+    throw new Error("HTTP " + response.status);
+  }
+
   return true;
 }
 
-// ── Concurrency-limited pool ──────────────────────────────────────────────────
-/**
- * Process every item in `items` by calling `taskFn(item)`, with at most
- * `concurrency` tasks running simultaneously.  Calls `onProgress(done, total)`
- * after each task completes.  Returns an array of PromiseSettledResult objects
- * in the same order as `items`.
- */
-async function pooledAllSettled(items, taskFn, concurrency, onProgress) {
-  var total    = items.length;
-  var results  = new Array(total);
-  var index    = 0;   // next item to start
-  var done     = 0;   // items finished
+// ─────────────────────────────────────────────────────────────────────────────
+// Concurrency-limited worker pool
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Each worker pulls the next available item until exhausted
+async function pooledAllSettled(items, taskFn, concurrency, onProgress) {
+  var total = items.length;
+  var results = new Array(total);
+  var index = 0;
+  var done = 0;
+
   async function worker() {
     while (true) {
       var i = index++;
-      if (i >= total) break;
-      try {
-        results[i] = { status: "fulfilled", value: await taskFn(items[i]) };
-      } catch (err) {
-        results[i] = { status: "rejected", reason: err };
+
+      if (i >= total) {
+        break;
       }
+
+      try {
+        results[i] = {
+          status: "fulfilled",
+          value: await taskFn(items[i])
+        };
+      } catch (err) {
+        results[i] = {
+          status: "rejected",
+          reason: err
+        };
+      }
+
       done++;
+
       onProgress(done, total);
     }
   }
 
-  // Spawn exactly MIN(concurrency, total) workers
   var workerCount = Math.min(concurrency, total);
   var workers = [];
+
   for (var w = 0; w < workerCount; w++) {
     workers.push(worker());
   }
-  await Promise.all(workers);   // wait until all workers have drained the queue
+
+  await Promise.all(workers);
 
   return results;
 }
 
-// ── Render bookmark list after sync ──────────────────────────────────────────
-/**
- * Render the per-bookmark result rows.
- * `allBookmarks`  — full list (eligible + skipped)
- * `eligible`      — bookmarks that were sent to the API
- * `outcomes`      — PromiseSettledResult[] aligned to `eligible`
- * `skippedCount`  — count of non-http(s) bookmarks
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Render results
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderResults(eligible, outcomes, skippedCount) {
   if (eligible.length === 0 && skippedCount === 0) {
     bookmarksSec.innerHTML = "";
     return;
   }
 
-  // Build result rows for eligible bookmarks
-  var rows = eligible.map(function (b, i) {
-    var outcome = outcomes[i];
-    var ok      = outcome.status === "fulfilled";
-    var indCls  = ok ? "ok" : "failed";
-    var resTxt  = ok ? "\u2713 Synced" : "\u2717 Failed";
-    var resCls  = ok ? "ok" : "failed";
+  var rows = eligible
+    .map(function (bookmark, i) {
+      var outcome = outcomes[i];
 
-    return '<div class="bookmark">'
-      + '<div class="bookmark-indicator ' + indCls + '" aria-hidden="true"></div>'
-      + '<div class="bookmark-body">'
-      +   '<div class="bookmark-title" title="' + esc(b.title) + '">' + esc(b.title) + '</div>'
-      +   '<div class="bookmark-url" title="' + esc(b.url) + '">' + esc(displayHost(b.url)) + '</div>'
-      + '</div>'
-      + '<div class="bookmark-result ' + resCls + '">' + resTxt + '</div>'
-      + '</div>';
-  }).join("");
+      var ok = outcome.status === "fulfilled";
 
-  var label = eligible.length + " synced";
-  if (skippedCount > 0) label += " &middot; " + skippedCount + " skipped";
+      var indicatorClass = ok ? "ok" : "failed";
+      var resultClass = ok ? "ok" : "failed";
+      var resultText = ok ? "✓ Synced" : "✗ Failed";
+
+      return (
+        '<div class="bookmark">' +
+          '<div class="bookmark-indicator ' +
+          indicatorClass +
+          '" aria-hidden="true"></div>' +
+          '<div class="bookmark-body">' +
+            '<div class="bookmark-title" title="' +
+            esc(bookmark.title) +
+            '">' +
+            esc(bookmark.title) +
+            "</div>" +
+            '<div class="bookmark-url" title="' +
+            esc(bookmark.url) +
+            '">' +
+            esc(displayHost(bookmark.url)) +
+            "</div>" +
+          "</div>" +
+          '<div class="bookmark-result ' +
+          resultClass +
+          '">' +
+          resultText +
+          "</div>" +
+        "</div>"
+      );
+    })
+    .join("");
+
+  var label = eligible.length + " processed";
+
+  if (skippedCount > 0) {
+    label += " · " + skippedCount + " skipped";
+  }
 
   bookmarksSec.innerHTML =
-    '<div class="section-label">Results (' + label + ')</div>' + rows;
+    '<div class="section-label">Results (' +
+    label +
+    ")</div>" +
+    rows;
 }
 
-// ── Sync handler ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Main sync handler
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function handleSync() {
-  // Disable button and show spinner
   syncBtn.disabled = true;
   syncBtn.classList.add("syncing");
+
   bookmarksSec.innerHTML = "";
-  setStatus("Syncing your bookmarks\u2026", "syncing");
 
   try {
-    // 1. Discover all bookmarks
+    // 1. Read Chrome bookmarks
+    setStatus("Reading your bookmarks…", "syncing");
+
     const tree = await new Promise(function (resolve, reject) {
       chrome.bookmarks.getTree(function (result) {
         if (chrome.runtime.lastError) {
@@ -181,9 +269,10 @@ async function handleSync() {
       return;
     }
 
-    // 2. Partition into eligible (http/https) and skipped (everything else)
+    // 2. Filter supported web bookmarks
     const eligible = [];
-    const skipped  = [];
+    const skipped = [];
+
     for (var i = 0; i < allBookmarks.length; i++) {
       if (isSupportedUrl(allBookmarks[i].url)) {
         eligible.push(allBookmarks[i]);
@@ -193,61 +282,163 @@ async function handleSync() {
     }
 
     if (eligible.length === 0) {
-      var skipMsg = "No http/https bookmarks found.";
+      var skipMessage =
+        "No http/https bookmarks found.";
+
       if (skipped.length > 0) {
-        skipMsg += " " + skipped.length + " bookmark" + (skipped.length !== 1 ? "s" : "") + " skipped (unsupported URL scheme).";
+        skipMessage +=
+          " " +
+          skipped.length +
+          " bookmark" +
+          (skipped.length !== 1 ? "s" : "") +
+          " skipped.";
       }
-      setStatus(skipMsg, "idle");
+
+      setStatus(skipMessage, "idle");
       return;
     }
 
-    // 3. Register eligible bookmarks with a concurrency limit of MAX_CONCURRENCY.
-    //    pooledAllSettled processes at most 3 requests at a time, calling
-    //    onProgress after each completion so the status bar stays live.
+    // 3. Ask AWS which bookmarks are already registered
+    setStatus(
+      "Checking which bookmarks are already synced…",
+      "syncing"
+    );
+
+    const registeredIds = await getRegisteredBookmarkIds();
+
+    // 4. Find only NEW bookmarks
+    const newBookmarks = [];
+
+    for (var j = 0; j < eligible.length; j++) {
+      var bookmark = eligible[j];
+
+      if (!registeredIds.has(String(bookmark.id))) {
+        newBookmarks.push(bookmark);
+      }
+    }
+
+    // 5. Nothing new to sync
+    if (newBookmarks.length === 0) {
+      var alreadySyncedMessage =
+        "✓ All " +
+        eligible.length +
+        " bookmarks are already synced.";
+
+      if (skipped.length > 0) {
+        alreadySyncedMessage +=
+          " · " + skipped.length + " skipped";
+      }
+
+      setStatus(alreadySyncedMessage, "success");
+
+      return;
+    }
+
+    // 6. Tell user how many are new
+    setStatus(
+      newBookmarks.length +
+        " new bookmark" +
+        (newBookmarks.length !== 1 ? "s" : "") +
+        " found.",
+      "syncing"
+    );
+
+    // 7. Register ONLY new bookmarks
     const outcomes = await pooledAllSettled(
-      eligible,
+      newBookmarks,
       registerBookmark,
       MAX_CONCURRENCY,
-      function onProgress(done, total) {
+      function (done, total) {
         setStatus(
-          "Syncing " + done + " of " + total + " bookmarks\u2026",
+          "Syncing " +
+            done +
+            " of " +
+            total +
+            " new bookmark" +
+            (total !== 1 ? "s" : "") +
+            "…",
           "syncing"
         );
       }
     );
 
-    // 4. Count results
-    const succeeded   = outcomes.filter(function (o) { return o.status === "fulfilled"; }).length;
-    const failed      = outcomes.length - succeeded;
-    const skippedCount = skipped.length;
+    // 8. Count results
+    const succeeded = outcomes.filter(function (outcome) {
+      return outcome.status === "fulfilled";
+    }).length;
 
-    // 5. Build final status message
-    var parts = [];
+    const failed = outcomes.length - succeeded;
+
+    // 9. Final status
+    var statusMessage = "";
+
     if (failed === 0) {
-      parts.push("\u2713 Synced " + succeeded + " bookmark" + (succeeded !== 1 ? "s" : ""));
+      statusMessage =
+        "✓ Synced " +
+        succeeded +
+        " new bookmark" +
+        (succeeded !== 1 ? "s" : "");
+
+      if (skipped.length > 0) {
+        statusMessage +=
+          " · " + skipped.length + " skipped";
+      }
+
+      setStatus(statusMessage, "success");
     } else if (succeeded === 0) {
-      parts.push("Sync failed \u2014 " + failed + " bookmark" + (failed !== 1 ? "s" : "") + " could not be registered");
+      statusMessage =
+        "Sync failed — " +
+        failed +
+        " new bookmark" +
+        (failed !== 1 ? "s" : "") +
+        " could not be registered";
+
+      if (skipped.length > 0) {
+        statusMessage +=
+          " · " + skipped.length + " skipped";
+      }
+
+      setStatus(statusMessage, "error");
     } else {
-      parts.push("Synced " + succeeded + " of " + (succeeded + failed) + " bookmarks \u00b7 " + failed + " failed");
+      statusMessage =
+        "Synced " +
+        succeeded +
+        " of " +
+        newBookmarks.length +
+        " new bookmarks · " +
+        failed +
+        " failed";
+
+      if (skipped.length > 0) {
+        statusMessage +=
+          " · " + skipped.length + " skipped";
+      }
+
+      setStatus(statusMessage, "partial");
     }
-    if (skippedCount > 0) {
-      parts.push(skippedCount + " skipped");
-    }
 
-    var statusMsg  = parts.join(" \u00b7 ");
-    var statusType = failed === 0 ? "success" : (succeeded === 0 ? "error" : "partial");
-    setStatus(statusMsg, statusType);
+    // 10. Show results for only the bookmarks that were actually uploaded
+    renderResults(
+      newBookmarks,
+      outcomes,
+      skipped.length
+    );
 
-    // 6. Render per-bookmark result rows
-    renderResults(eligible, outcomes, skippedCount);
+  } catch (error) {
+    console.error("Bookmark sync error:", error);
 
-  } catch (err) {
-    setStatus("Error: " + esc(err.message), "error");
+    setStatus(
+      "Could not check existing bookmarks. Please try again.",
+      "error"
+    );
   } finally {
     syncBtn.disabled = false;
     syncBtn.classList.remove("syncing");
   }
 }
 
-// ── Wire up ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Wire up button
+// ─────────────────────────────────────────────────────────────────────────────
+
 syncBtn.addEventListener("click", handleSync);
