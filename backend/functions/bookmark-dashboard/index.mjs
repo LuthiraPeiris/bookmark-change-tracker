@@ -1,9 +1,28 @@
-import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBClient,
+  ScanCommand,
+  UpdateItemCommand
+} from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 
 const TABLE_NAME = "BookmarkChangeTracker";
 const REGION = process.env.AWS_REGION ?? "us-east-1";
 const dynamo = new DynamoDBClient({ region: REGION });
+const CATEGORIES = [
+  "Development",
+  "AWS & Cloud",
+  "AI",
+  "Learning",
+  "Articles",
+  "Tools",
+  "Social & Profiles",
+  "Books",
+  "Movies & Entertainment",
+  "Hardware & Electronics",
+  "Shopping",
+  "Travel & Places",
+  "Searches"
+];
 
 // ---------------------------------------------------------------------------
 // DynamoDB
@@ -30,10 +49,51 @@ async function fetchBookmarks() {
       bookmarkId: item.bookmarkId,
       title: item.title,
       url: item.url,
-      category: item.category || "Other",
+      category: item.category || null,
       createdAt: item.createdAt,
     };
   });
+}
+
+async function updateBookmarkCategory(bookmarkId, category) {
+  if (!bookmarkId) {
+    throw new Error("bookmarkId is required");
+  }
+
+  if (!CATEGORIES.includes(category)) {
+    throw new Error("Invalid category");
+  }
+
+  const command = new UpdateItemCommand({
+    TableName: TABLE_NAME,
+
+    Key: {
+      bookmarkId: {
+        S: String(bookmarkId)
+      }
+    },
+
+    UpdateExpression: "SET #category = :category",
+
+    ExpressionAttributeNames: {
+      "#category": "category"
+    },
+
+    ExpressionAttributeValues: {
+      ":category": {
+        S: category
+      }
+    },
+
+    ReturnValues: "UPDATED_NEW"
+  });
+
+  await dynamo.send(command);
+
+  return {
+    bookmarkId: String(bookmarkId),
+    category
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -46,7 +106,7 @@ function apiResponse(bookmarks) {
     headers: {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,OPTIONS",
+      "Access-Control-Allow-Methods": "GET,PUT,OPTIONS",
     },
     body: JSON.stringify({ bookmarks }),
   };
@@ -447,6 +507,58 @@ a:hover { text-decoration: underline; color: var(--accent2); }
   text-decoration: none;
 }
 
+.category-editor {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 0.7rem;
+  margin-top: 0.1rem;
+}
+
+.category-select {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.category-select:focus {
+  border-color: var(--accent);
+}
+
+.category-save {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: white;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.category-save:hover {
+  background: var(--accent2);
+}
+
+.category-save:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.cat-Uncategorized {
+  --cat-c: #7d8590;
+  --cat-bg: #0d1117;
+  --cat-b: #21283a;
+}
+
 /* ── Empty / loading / error ── */
 .state-box {
   grid-column: 1 / -1;
@@ -630,29 +742,153 @@ footer {
 
   /* ── CSS-safe category class ── */
   function catClass(cat) {
-    return "cat-" + (cat || "Other").replace(/[^a-zA-Z0-9]+/g, "-");
+    return "cat-" + (cat || "Uncategorized").replace(/[^a-zA-Z0-9]+/g, "-");
   }
 
   /* ── Render one card ── */
   function renderCard(b) {
-    var letter = esc((b.title || "?")[0].toUpperCase());
-    var cat = b.category || "Other";
-    var cls = catClass(cat);
+  var letter = esc((b.title || "?")[0].toUpperCase());
+  var cat = b.category || null;
+  var cls = catClass(cat);
 
-    return '<article class="bm-card" aria-label="' + esc(b.title || "Bookmark") + '">'
-      + '<div class="card-top">'
-      +   '<div class="card-letter ' + cls + '">' + letter + '</div>'
-      +   '<div class="card-info">'
-      +     '<div class="card-name" title="' + esc(b.title) + '">' + esc(b.title || "Untitled") + '</div>'
-      +     '<div class="card-domain">' + esc(host(b.url)) + '</div>'
-      +   '</div>'
-      +   '<span class="cat-pill ' + cls + '">' + esc(cat) + '</span>'
-      + '</div>'
-      + '<a class="card-link" href="' + esc(b.url) + '" target="_blank" rel="noopener noreferrer">'
-      +   '&#128279; Open website'
-      + '</a>'
-      + '</article>';
+  var categoryArea = "";
+
+  if (cat) {
+    categoryArea =
+      '<span class="cat-pill ' + cls + '">' +
+      esc(cat) +
+      '</span>';
+  } else {
+    categoryArea =
+      '<span class="cat-pill cat-Uncategorized">' +
+      'Uncategorized' +
+      '</span>';
   }
+
+  var editor = "";
+
+  if (!cat) {
+    var options = [
+      "Development",
+      "AWS & Cloud",
+      "AI",
+      "Learning",
+      "Articles",
+      "Tools",
+      "Social & Profiles",
+      "Books",
+      "Movies & Entertainment",
+      "Hardware & Electronics",
+      "Shopping",
+      "Travel & Places",
+      "Searches"
+    ];
+
+    editor =
+      '<div class="category-editor">' +
+        '<select class="category-select" data-bookmark-id="' +
+          esc(b.bookmarkId) +
+        '">' +
+          '<option value="">Select category</option>' +
+          options.map(function (option) {
+            return '<option value="' +
+              esc(option) +
+              '">' +
+              esc(option) +
+              '</option>';
+          }).join("") +
+        '</select>' +
+        '<button class="category-save" data-bookmark-id="' +
+          esc(b.bookmarkId) +
+        '">' +
+          'Save' +
+        '</button>' +
+      '</div>';
+  }
+
+  return '<article class="bm-card" aria-label="' +
+      esc(b.title || "Bookmark") +
+      '">' +
+
+      '<div class="card-top">' +
+
+        '<div class="card-letter ' + cls + '">' +
+          letter +
+        '</div>' +
+
+        '<div class="card-info">' +
+          '<div class="card-name" title="' +
+            esc(b.title) +
+          '">' +
+            esc(b.title || "Untitled") +
+          '</div>' +
+
+          '<div class="card-domain">' +
+            esc(host(b.url)) +
+          '</div>' +
+        '</div>' +
+
+        categoryArea +
+
+      '</div>' +
+
+      editor +
+
+      '<a class="card-link" href="' +
+        esc(b.url) +
+        '" target="_blank" rel="noopener noreferrer">' +
+        '&#128279; Open website' +
+      '</a>' +
+
+    '</article>';
+}
+
+async function saveCategory(bookmarkId, category, button) {
+  if (!category) {
+    alert("Please select a category.");
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "Saving...";
+
+  try {
+    var res = await fetch("/api/bookmarks", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        bookmarkId: bookmarkId,
+        category: category
+      })
+    });
+
+    var data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to update category");
+    }
+
+    var bookmark = allBookmarks.find(function (b) {
+      return String(b.bookmarkId) === String(bookmarkId);
+    });
+
+    if (bookmark) {
+      bookmark.category = category;
+    }
+
+    buildChips(allBookmarks);
+    renderVisible();
+
+  } catch (err) {
+    console.error("Category update failed:", err);
+    alert("Failed to save category: " + err.message);
+
+    button.disabled = false;
+    button.textContent = "Save";
+  }
+}
 
   /* ── Filter + render ── */
   function renderVisible() {
@@ -754,6 +990,34 @@ visible.sort(function (a, b) {
 
     renderVisible();
   }
+
+
+  document.getElementById("grid").addEventListener("click", function (event) {
+  var button = event.target.closest(".category-save");
+
+  if (!button) {
+    return;
+  }
+
+  var bookmarkId = button.dataset.bookmarkId;
+
+  var select = document.querySelector(
+    '.category-select[data-bookmark-id="' +
+    CSS.escape(bookmarkId) +
+    '"]'
+  );
+
+  if (!select) {
+    return;
+  }
+
+  saveCategory(
+    bookmarkId,
+    select.value,
+    button
+  );
+});
+
 
   /* ── Load data ── */
   async function loadData() {
@@ -863,11 +1127,67 @@ export async function handler(event) {
       statusCode: 204,
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,PUT,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
       body: "",
     };
+  }
+
+    // PUT /api/bookmarks — update bookmark category
+  if (path === "/api/bookmarks" && method === "PUT") {
+    try {
+      const body =
+        typeof event.body === "string"
+          ? JSON.parse(event.body)
+          : event.body;
+
+      const { bookmarkId, category } = body || {};
+
+      if (!bookmarkId || !category) {
+        return {
+          statusCode: 400,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          },
+          body: JSON.stringify({
+            error: "bookmarkId and category are required"
+          })
+        };
+      }
+
+      const updated = await updateBookmarkCategory(
+        bookmarkId,
+        category
+      );
+
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          message: "Bookmark category updated successfully",
+          ...updated
+        })
+      };
+
+    } catch (err) {
+      console.error("Category update error:", err);
+
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        },
+        body: JSON.stringify({
+          error: err.message
+        })
+      };
+    }
   }
 
   // GET /api/bookmarks
