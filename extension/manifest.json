@@ -6,6 +6,9 @@
   "permissions": [
     "bookmarks"
   ],
+  "host_permissions": [
+    "https://ykp7sgqc50.execute-api.us-east-1.amazonaws.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },

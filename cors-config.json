@@ -1,0 +1,5 @@
+{
+  "AllowOrigins": ["chrome-extension://feeipjdpbmloljbpkichgjbkbbfafcca"],
+  "AllowMethods": ["POST", "OPTIONS"],
+  "AllowHeaders": ["Content-Type"]
+}
