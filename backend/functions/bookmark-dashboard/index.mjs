@@ -589,6 +589,17 @@ a:hover { text-decoration: underline; color: var(--accent2); }
   cursor: wait;
 }
 
+.category-status {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.category-status.saved {
+  color: #56d364;
+  font-weight: 600;
+}
+
 .cat-Uncategorized {
   --cat-c: #7d8590;
   --cat-bg: #0d1117;
@@ -813,60 +824,31 @@ applyTheme(savedTheme);
   var cat = b.category || null;
   var cls = catClass(cat);
 
-  var categoryArea = "";
+  var options = [
+    "Development",
+    "AWS & Cloud",
+    "AI",
+    "Learning",
+    "Articles",
+    "Tools",
+    "Social & Profiles",
+    "Books",
+    "Movies & Entertainment",
+    "Hardware & Electronics",
+    "Shopping",
+    "Travel & Places",
+    "Searches"
+  ];
 
-  if (cat) {
-    categoryArea =
-      '<span class="cat-pill ' + cls + '">' +
-      esc(cat) +
-      '</span>';
-  } else {
-    categoryArea =
-      '<span class="cat-pill cat-Uncategorized">' +
-      'Uncategorized' +
-      '</span>';
-  }
-
-  var editor = "";
-
-  if (!cat) {
-    var options = [
-      "Development",
-      "AWS & Cloud",
-      "AI",
-      "Learning",
-      "Articles",
-      "Tools",
-      "Social & Profiles",
-      "Books",
-      "Movies & Entertainment",
-      "Hardware & Electronics",
-      "Shopping",
-      "Travel & Places",
-      "Searches"
-    ];
-
-    editor =
-      '<div class="category-editor">' +
-        '<select class="category-select" data-bookmark-id="' +
-          esc(b.bookmarkId) +
-        '">' +
-          '<option value="">Select category</option>' +
-          options.map(function (option) {
-            return '<option value="' +
-              esc(option) +
-              '">' +
-              esc(option) +
-              '</option>';
-          }).join("") +
-        '</select>' +
-        '<button class="category-save" data-bookmark-id="' +
-          esc(b.bookmarkId) +
-        '">' +
-          'Save' +
-        '</button>' +
-      '</div>';
-  }
+  var categoryOptions =
+    '<option value="">Select category</option>' +
+    options.map(function (option) {
+      return '<option value="' + esc(option) + '"' +
+        (option === cat ? ' selected' : '') +
+        '>' +
+        esc(option) +
+        '</option>';
+    }).join("");
 
   return '<article class="bm-card" aria-label="' +
       esc(b.title || "Bookmark") +
@@ -890,11 +872,31 @@ applyTheme(savedTheme);
           '</div>' +
         '</div>' +
 
-        categoryArea +
-
       '</div>' +
 
-      editor +
+      '<div class="category-editor">' +
+
+        '<select class="category-select" data-bookmark-id="' +
+          esc(b.bookmarkId) +
+        '">' +
+
+          categoryOptions +
+
+        '</select>' +
+
+        '<button class="category-save" data-bookmark-id="' +
+          esc(b.bookmarkId) +
+        '">' +
+
+          'Save' +
+
+        '</button>' +
+
+        '<span class="category-status" data-status-id="' +
+          esc(b.bookmarkId) +
+        '"></span>' +
+
+      '</div>' +
 
       '<a class="card-link" href="' +
         esc(b.url) +
@@ -905,6 +907,7 @@ applyTheme(savedTheme);
     '</article>';
 }
 
+  
 async function saveCategory(bookmarkId, category, button) {
   if (!category) {
     alert("Please select a category.");
@@ -943,14 +946,27 @@ async function saveCategory(bookmarkId, category, button) {
     buildChips(allBookmarks);
     renderVisible();
 
+    var status = document.querySelector(
+      '.category-status[data-status-id="' +
+      CSS.escape(String(bookmarkId)) +
+      '"]'
+    );
+
+    if (status) {
+      status.textContent = "✓ Saved";
+      status.classList.add("saved");
+    }
+
   } catch (err) {
     console.error("Category update failed:", err);
-    alert("Failed to save category: " + err.message);
 
     button.disabled = false;
     button.textContent = "Save";
+
+    alert("Failed to save category: " + err.message);
   }
 }
+
 
   /* ── Filter + render ── */
   function renderVisible() {
@@ -1009,7 +1025,7 @@ visible.sort(function (a, b) {
     var counts = {};
 
     bookmarks.forEach(function (b) {
-      var c = b.category || "Other";
+      var c = b.category || "Uncategorized";
       counts[c] = (counts[c] || 0) + 1;
     });
 
@@ -1110,7 +1126,7 @@ visible.sort(function (a, b) {
       /* Stats */
       var cats = new Set(
         allBookmarks.map(function (b) {
-          return b.category || "Other";
+          return b.category || "Uncategorized";
         })
       );
 
@@ -1146,7 +1162,7 @@ visible.sort(function (a, b) {
     localStorage.setItem("bookmark-theme", nextTheme);
     applyTheme(nextTheme);
   });
-  
+
   document.getElementById("search")
     .addEventListener("input", renderVisible);
 
