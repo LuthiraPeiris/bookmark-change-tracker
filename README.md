@@ -1,4 +1,4 @@
-# 🔖 Bookmark Change Tracker {#Bookmark Library}
+# 🔖 Bookmark Library {#Bookmark Library}
 
 > **An AI-powered Chrome bookmark organizer and website change tracker,
 > built and shipped on AWS.**
