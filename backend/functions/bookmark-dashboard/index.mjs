@@ -145,6 +145,42 @@ function htmlResponse() {
   --shadow:    0 1px 3px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.3);
 }
 
+body.light {
+  --bg:        #f6f8fa;
+  --bg2:       #ffffff;
+  --surface:   #ffffff;
+  --surface2:  #f0f3f6;
+  --border:    #d0d7de;
+  --border2:   #afb8c1;
+  --text:      #1f2328;
+  --text2:     #424a53;
+  --muted:     #656d76;
+  --accent:    #5766d9;
+  --accent2:   #4554c7;
+  --shadow:    0 1px 3px rgba(31,35,40,.12),
+               0 4px 16px rgba(31,35,40,.08);
+}
+
+body.light .topbar {
+  background: rgba(255,255,255,.88);
+}
+
+body.light .hero {
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -10%,
+    rgba(87,102,217,.10) 0%,
+    transparent 70%
+  );
+}
+
+body.light .search-input {
+  background: var(--surface);
+}
+
+body.light .category-select {
+  background: var(--surface2);
+}
+
 /* ── Category pill colours ── */
 .cat-Development { --cat-c: #79c0ff; --cat-bg: #051d2e; --cat-b: #0d3958; }
 .cat-AWS-Cloud   { --cat-c: #f0883e; --cat-bg: #1f1308; --cat-b: #6b3015; }
@@ -627,11 +663,16 @@ footer {
       </div>
 
       <div class="topbar-right">
-        <button class="btn-sm" id="refresh-btn" aria-label="Refresh">
-          <span class="spin" aria-hidden="true">&#8635;</span>
-          Refresh
-        </button>
-      </div>
+  <button class="btn-sm" id="theme-btn" aria-label="Toggle theme">
+    <span id="theme-icon" aria-hidden="true">&#9728;</span>
+    <span id="theme-label">Light</span>
+  </button>
+
+  <button class="btn-sm" id="refresh-btn" aria-label="Refresh">
+    <span class="spin" aria-hidden="true">&#8635;</span>
+    Refresh
+  </button>
+</div>
     </div>
   </div>
 </nav>
@@ -720,6 +761,27 @@ footer {
 
   var allBookmarks = [];
   var activeCategory = "All";
+
+  /* ── Theme ── */
+function applyTheme(theme) {
+  var isLight = theme === "light";
+
+  document.body.classList.toggle("light", isLight);
+
+  var icon = document.getElementById("theme-icon");
+  var label = document.getElementById("theme-label");
+
+  if (isLight) {
+    icon.innerHTML = "&#9789;";
+    label.textContent = "Dark";
+  } else {
+    icon.innerHTML = "&#9728;";
+    label.textContent = "Light";
+  }
+}
+
+var savedTheme = localStorage.getItem("bookmark-theme") || "dark";
+applyTheme(savedTheme);
 
   /* ── Escape ── */
   function esc(s) {
@@ -1076,6 +1138,15 @@ visible.sort(function (a, b) {
   }
 
   /* ── Wire up ── */
+  document.getElementById("theme-btn")
+  .addEventListener("click", function () {
+    var isLight = document.body.classList.contains("light");
+    var nextTheme = isLight ? "dark" : "light";
+
+    localStorage.setItem("bookmark-theme", nextTheme);
+    applyTheme(nextTheme);
+  });
+  
   document.getElementById("search")
     .addEventListener("input", renderVisible);
 
