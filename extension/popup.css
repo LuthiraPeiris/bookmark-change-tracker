@@ -205,3 +205,35 @@ h1 {
 
 .bookmark-result.ok     { color: #16a34a; }
 .bookmark-result.failed { color: #ea580c; }
+
+.divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 16px 0;
+}
+
+.btn-dashboard {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: all 0.15s ease;
+}
+
+.btn-dashboard:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn-dashboard:active {
+  transform: translateY(1px);
+}

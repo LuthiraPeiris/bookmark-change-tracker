@@ -442,3 +442,14 @@ async function handleSync() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 syncBtn.addEventListener("click", handleSync);
+
+const dashboardBtn = document.getElementById("dashboard-btn");
+
+const DASHBOARD_URL =
+  "https://ykp7sgqc50.execute-api.us-east-1.amazonaws.com/";
+
+dashboardBtn.addEventListener("click", function () {
+  chrome.tabs.create({
+    url: DASHBOARD_URL
+  });
+});
