@@ -1,4 +1,4 @@
-# 🔖 Bookmark Change Tracker {#bookmark-bookmark-change-tracker}
+# 🔖 Bookmark Change Tracker {#Bookmark Library}
 
 > **An AI-powered Chrome bookmark organizer and website change tracker,
 > built and shipped on AWS.**
@@ -19,7 +19,7 @@ be checked automatically for content changes.
 ## 🏆 AWS Zero to Shipped Hackathon {#trophy-aws-zero-to-shipped-hackathon}
 
 **Hackathon:** AWS Zero to Shipped Hackathon 2026\
-**Project:** Bookmark Change Tracker\
+**Project:** Bookmark Library\
 **Application Category:** Daily-Life Enhancement\
 **Focus Track:** Community\
 **Status:** Live and publicly accessible on AWS
