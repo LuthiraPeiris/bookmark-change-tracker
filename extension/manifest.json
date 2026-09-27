@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Change Tracker",
+  "version": "0.1.0",
+  "description": "Track changes to bookmarked websites.",
+  "permissions": [
+    "bookmarks"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
