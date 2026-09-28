@@ -1,4 +1,4 @@
-# 🔖 Bookmark Library {#Bookmark Library}
+# 🔖 Bookmark Library 
 
 > **An AI-powered Chrome bookmark organizer and website change tracker,
 > built and shipped on AWS.**
@@ -19,7 +19,7 @@ be checked automatically for content changes.
 ![Image Alt](https://github.com/LuthiraPeiris/bookmark-change-tracker/blob/9f222cef39b58d781075f560f0570483dacf004a/public/architecture.png)
 
 
-## 🏆 AWS Zero to Shipped Hackathon {#trophy-aws-zero-to-shipped-hackathon}
+## 🏆 AWS Zero to Shipped Hackathon 
 
 **Hackathon:** AWS Zero to Shipped Hackathon 2026\
 **Project:** Bookmark Library\
@@ -39,7 +39,7 @@ connection to AWS and the development process required by the hackathon.
 
 ------------------------------------------------------------------------
 
-## 🎯 The Problem {#dart-the-problem}
+## 🎯 The Problem 
 
 Browser bookmarks are useful, but bookmark collections quickly become
 difficult to manage.
@@ -61,7 +61,7 @@ Users need a simple way to:
 
 ------------------------------------------------------------------------
 
-## 💡 The Solution {#bulb-the-solution}
+## 💡 The Solution 
 
 Bookmark Change Tracker connects the user\'s Chrome bookmarks to a
 serverless AWS backend.
@@ -105,15 +105,15 @@ initial category, while the user can change that category at any time.
 
 ------------------------------------------------------------------------
 
-## ✨ Core Features {#sparkles-core-features}
+## ✨ Core Features
 
-### 🔖 Automatic Bookmark Detection {#bookmark-automatic-bookmark-detection}
+### 🔖 Automatic Bookmark Detection 
 
 The Chrome extension listens for newly created bookmarks. When a normal
 HTTP/HTTPS website is bookmarked, the extension sends the bookmark title
 and URL to the AWS backend.
 
-### 🤖 AI-Powered Categorization {#robot-ai-powered-categorization}
+### 🤖 AI-Powered Categorization 
 
 New bookmarks are categorized automatically using the Groq API.
 
@@ -133,7 +133,7 @@ The AI is restricted to these application-defined categories:
 -   Travel & Places
 -   Searches
 
-### ✏️ User-Controlled AI Override {#pencil2-user-controlled-ai-override}
+### ✏️ User-Controlled AI Override 
 
 Every bookmark in the dashboard has a category selector. Users can
 change the AI-generated category and save the new category to DynamoDB.
@@ -150,25 +150,25 @@ Save
 Amazon DynamoDB
 ```
 
-### 🔎 Search and Filtering {#mag_right-search-and-filtering}
+### 🔎 Search and Filtering 
 
 Search by bookmark title, URL, domain, or category and filter the
 collection by category.
 
-### 🌐 Website Change Monitoring {#globe_with_meridians-website-change-monitoring}
+### 🌐 Website Change Monitoring 
 
 Amazon EventBridge Scheduler triggers the `check-websites` Lambda
 function to check bookmarked websites and compare their current content
 information with the previously stored state.
 
-### 🌓 Light and Dark Mode {#first_quarter_moon-light-and-dark-mode}
+### 🌓 Light and Dark Mode 
 
 The dashboard supports light and dark themes, with the selected theme
 stored locally in the browser.
 
 ------------------------------------------------------------------------
 
-## ☁️ AWS Architecture {#cloud-aws-architecture}
+## ☁️ AWS Architecture 
 
 ``` text
                          ┌─────────────────────┐
@@ -239,7 +239,7 @@ always-running infrastructure.
 
 ------------------------------------------------------------------------
 
-## 🤖 Coding Agent + AWS {#robot-coding-agent--aws}
+## 🤖 Coding Agent + AWS 
 
 A core requirement of the AWS Zero to Shipped Hackathon is building with
 a coding agent connected to AWS.
@@ -268,13 +268,13 @@ and the live application.
 
 ------------------------------------------------------------------------
 
-## 🔄 Development Journey {#arrows_counterclockwise-development-journey}
+## 🔄 Development Journey 
 
-### Phase 1 --- Identify the problem {#phase-1--identify-the-problem}
+### Phase 1 --- Identify the problem 
 
 The initial problem was excessive and unorganized Chrome bookmarks.
 
-### Phase 2 --- Define the MVP {#phase-2--define-the-mvp}
+### Phase 2 --- Define the MVP 
 
 The MVP was reduced to a small serverless architecture:
 
@@ -285,22 +285,22 @@ The MVP was reduced to a small serverless architecture:
 -   EventBridge Scheduler
 -   Public dashboard
 
-### Phase 3 --- Add AI {#phase-3--add-ai}
+### Phase 3 --- Add AI 
 
 AI categorization was introduced for newly created bookmarks,
 constrained to a fixed set of application categories.
 
-### Phase 4 --- Add user control {#phase-4--add-user-control}
+### Phase 4 --- Add user control 
 
 The dashboard was extended so users can manually override an
 AI-generated category.
 
-### Phase 5 --- Ship publicly {#phase-5--ship-publicly}
+### Phase 5 --- Ship publicly 
 
 The application was deployed through AWS API Gateway and Lambda and made
 publicly accessible.
 
-### Phase 6 --- MVP verification {#phase-6--mvp-verification}
+### Phase 6 --- MVP verification 
 
 The final MVP was tested across new bookmark registration, AI
 categorization, manual category override, category persistence, search,
@@ -309,7 +309,7 @@ access.
 
 ------------------------------------------------------------------------
 
-## 📁 Project Structure {#file_folder-project-structure}
+## 📁 Project Structure 
 
 ``` text
 bookmark-change-tracker/
@@ -344,16 +344,16 @@ bookmark-change-tracker/
 
 ------------------------------------------------------------------------
 
-## 🚀 Run the Chrome Extension {#rocket-run-the-chrome-extension}
+## 🚀 Run the Chrome Extension 
 
-### 1. Clone the repository {#1-clone-the-repository}
+### 1. Clone the repository 
 
 ``` bash
 git clone https://github.com/LuthiraPeiris/bookmark-change-tracker.git
 cd bookmark-change-tracker
 ```
 
-### 2. Open Chrome Extensions {#2-open-chrome-extensions}
+### 2. Open Chrome Extensions 
 
 Open:
 
@@ -363,7 +363,7 @@ chrome://extensions
 
 Enable **Developer mode**.
 
-### 3. Load the extension {#3-load-the-extension}
+### 3. Load the extension 
 
 Select **Load unpacked** and choose:
 
@@ -371,14 +371,14 @@ Select **Load unpacked** and choose:
 extension/
 ```
 
-### 4. Create a bookmark {#4-create-a-bookmark}
+### 4. Create a bookmark 
 
 Bookmark a normal HTTP/HTTPS website. The extension detects it and sends
 it to the deployed AWS backend.
 
 ------------------------------------------------------------------------
 
-## 🔐 Configuration {#closed_lock_with_key-configuration}
+## 🔐 Configuration 
 
 The Groq API key is not stored in the Chrome extension or committed to
 the repository.
@@ -394,7 +394,7 @@ functions.
 
 ------------------------------------------------------------------------
 
-## 🌐 Live Application {#globe_with_meridians-live-application}
+## 🌐 Live Application
 
 **Public Dashboard**
 
@@ -410,42 +410,42 @@ functions.
 
 ------------------------------------------------------------------------
 
-## 🧪 MVP Status {#test_tube-mvp-status}
+## 🧪 MVP Status
 
-  Capability                            Status
-  ------------------------------------- -------------
-  Chrome bookmark detection             ✅ Complete
-  AWS bookmark registration             ✅ Complete
-  AI categorization for new bookmarks   ✅ Complete
-  DynamoDB persistence                  ✅ Complete
-  Public dashboard                      ✅ Complete
-  Search                                ✅ Complete
-  Category filtering                    ✅ Complete
-  Manual categorization                 ✅ Complete
-  AI category override                  ✅ Complete
-  Category persistence                  ✅ Complete
-  Scheduled website monitoring          ✅ Complete
-  Light / dark mode                     ✅ Complete
-  Public AWS deployment                 ✅ Complete
-
-------------------------------------------------------------------------
-
-## 📌 Hackathon Requirement Checklist {#pushpin-hackathon-requirement-checklist}
-
-  Zero to Shipped requirement             Project evidence
-  --------------------------------------- -------------------------------------------------------------
-  **Live public application on AWS**      Public API Gateway dashboard
-  **Coding agent connected to AWS**       Documented screenshots/evidence
-  **New application**                     Built specifically around the bookmark-management problem
-  **App category**                        Daily-Life Enhancement
-  **Focus track**                         Community
-  **AWS Builder Center project**          Project documentation and development details
-  **Accessible to AI and human judges**   Public dashboard/API
-  **AWS-based implementation**            API Gateway, Lambda, DynamoDB, EventBridge, IAM, CloudWatch
+| Capability | Status |
+| --- | --- |
+| Chrome bookmark detection | ✅ Complete |
+| AWS bookmark registration | ✅ Complete |
+| AI categorization for new bookmarks | ✅ Complete |
+| DynamoDB persistence | ✅ Complete |
+| Public dashboard | ✅ Complete |
+| Search | ✅ Complete |
+| Category filtering | ✅ Complete |
+| Manual categorization | ✅ Complete |
+| AI category override | ✅ Complete |
+| Category persistence | ✅ Complete |
+| Scheduled website monitoring | ✅ Complete |
+| Light / dark mode | ✅ Complete |
+| Public AWS deployment | ✅ Complete |
 
 ------------------------------------------------------------------------
 
-## 🔮 Future Improvements {#crystal_ball-future-improvements}
+## 📌 Hackathon Requirement Checklist
+
+| Zero to Shipped requirement | Project evidence |
+| --- | --- |
+| **Live public application on AWS** | Public API Gateway dashboard |
+| **Coding agent connected to AWS** | Documented screenshots/evidence |
+| **New application** | Built specifically around the bookmark-management problem |
+| **App category** | Daily-Life Enhancement |
+| **Focus track** | Community |
+| **AWS Builder Center project** | Project documentation and development details |
+| **Accessible to AI and human judges** | Public dashboard/API |
+| **AWS-based implementation** | API Gateway, Lambda, DynamoDB, EventBridge, IAM, CloudWatch |
+
+------------------------------------------------------------------------
+
+## 🔮 Future Improvements 
 
 The current submission intentionally focuses on the MVP.
 
@@ -463,7 +463,7 @@ Possible future improvements include:
 
 ------------------------------------------------------------------------
 
-## 👨‍💻 Author {#man_technologist-author}
+## 👨‍💻 Author 
 
 **Luthira Peiris**
 
