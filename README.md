@@ -476,6 +476,6 @@ Cloud / AWS / DevOps
 
 ------------------------------------------------------------------------
 
-## 📄 License {#page_facing_up-license}
+## 📄 License
 
 This project was created as a hackathon and learning project.
