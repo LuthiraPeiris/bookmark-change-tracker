@@ -93,3 +93,22 @@ coverage/
 # ============================================================
 
 test-output.json
+
+# ============================================================
+# Additional secret patterns
+# ============================================================
+
+*.env
+.env.local
+.env.*.local
+secrets.json
+credentials.json
+config.local.*
+!config.example.*
+
+# AWS CLI / SDK
+.aws/
+samconfig.toml   # can contain account IDs / bucket names
+
+# Local dev
+local.settings.json
