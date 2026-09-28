@@ -18,7 +18,6 @@ be checked automatically for content changes.
 ## Architecture Diagram
 ![Image Alt](https://github.com/LuthiraPeiris/bookmark-change-tracker/blob/9f222cef39b58d781075f560f0570483dacf004a/public/architecture.png)
 
-
 ## 🏆 AWS Zero to Shipped Hackathon 
 
 **Hackathon:** AWS Zero to Shipped Hackathon 2026\
@@ -407,6 +406,12 @@ functions.
 **Bookmark Registration API**
 
 <https://ykp7sgqc50.execute-api.us-east-1.amazonaws.com/bookmarks>
+
+------------------------------------------------------------------------
+
+## 🎬 Demo Video
+
+<https://youtu.be/RGMWTf84cqc>
 
 ------------------------------------------------------------------------
 
