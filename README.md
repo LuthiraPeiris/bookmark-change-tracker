@@ -223,16 +223,16 @@ stored locally in the browser.
 
 ------------------------------------------------------------------------
 
-## 🛠️ AWS Services {#hammer_and_wrench-aws-services}
+## 🛠️ AWS Services
 
-  AWS Service                        Role
-  ---------------------------------- ----------------------------------------------------------------
-  **Amazon API Gateway**             Public HTTP API for the Chrome extension and dashboard
-  **AWS Lambda**                     Serverless application logic
-  **Amazon DynamoDB**                Stores bookmarks, categories, timestamps, and monitoring state
-  **Amazon EventBridge Scheduler**   Triggers scheduled website checks
-  **AWS IAM**                        Controls access between Lambda and AWS services
-  **Amazon CloudWatch**              Lambda logging and operational monitoring
+| AWS Service | Role |
+| --- | --- |
+| **Amazon API Gateway** | Public HTTP API for the Chrome extension and dashboard |
+| **AWS Lambda** | Serverless application logic |
+| **Amazon DynamoDB** | Stores bookmarks, categories, timestamps, and monitoring state |
+| **Amazon EventBridge Scheduler** | Triggers scheduled website checks |
+| **AWS IAM** | Controls access between Lambda and AWS services |
+| **Amazon CloudWatch** | Lambda logging and operational monitoring |
 
 The architecture uses serverless/on-demand services to avoid unnecessary
 always-running infrastructure.
